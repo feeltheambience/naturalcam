@@ -1,0 +1,17 @@
+# Сборка
+build/
+app/build/
+.gradle/
+local.properties
+
+# Локальный тулчейн (gradle распакован сюда, не для репо)
+.tools/
+
+# Копии APK в корне (релизы уходят в GitHub Releases и на OTA-сервер)
+*.apk
+
+# IDE
+.idea/
+*.iml
+.kotlin/
+hs_err_pid*.log

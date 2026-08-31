@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Разрешаем незашифрованный HTTP только для сервера обновлений Дениса -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">188.227.86.219</domain>
+    </domain-config>
+</network-security-config>

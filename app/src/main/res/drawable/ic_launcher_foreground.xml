@@ -1,0 +1,24 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Корпус камеры -->
+    <path
+        android:fillColor="#E8E4DC"
+        android:pathData="M30,42 h48 a4,4 0 0 1 4,4 v22 a4,4 0 0 1 -4,4 h-48 a4,4 0 0 1 -4,-4 v-22 a4,4 0 0 1 4,-4 z" />
+    <!-- Выступ видоискателя -->
+    <path
+        android:fillColor="#E8E4DC"
+        android:pathData="M46,36 h16 l-3,6 h-10 z" />
+    <!-- Объектив -->
+    <path
+        android:fillColor="#1A1A1A"
+        android:pathData="M54,57 m-13,0 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0" />
+    <path
+        android:fillColor="#C9A227"
+        android:pathData="M54,57 m-8,0 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0" />
+    <path
+        android:fillColor="#1A1A1A"
+        android:pathData="M54,57 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+</vector>
