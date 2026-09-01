@@ -100,7 +100,11 @@ fun MainMenuScreen(controller: CameraController, onBack: () -> Unit, onOpenScout
                 enabled = caps?.supportsRaw == true, options = listOf(
                     "JPEG" to { controller.updateSettings { it.copy(captureRaw = false) } },
                     "RAW+JPG" to { controller.updateSettings { it.copy(captureRaw = true) } }
-                ))
+                )),
+            MRow("Разрешение", if (s.hiRes) "Максимум" else "12 Мп", options = listOf(
+                "12 Мп" to { controller.updateSettings { it.copy(hiRes = false) } },
+                "Максимум" to { controller.updateSettings { it.copy(hiRes = true) } }
+            ))
         )
         MTab.CUSTOM -> listOf(
             MRow("Фокус-пикинг", if (controller.focusPeaking) "ВКЛ" else "Выкл", options = listOf(

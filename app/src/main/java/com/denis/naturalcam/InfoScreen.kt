@@ -46,8 +46,14 @@ fun InfoScreen(controller: CameraController, onBack: () -> Unit) {
             Text("Разведчик камер", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
         Text(
+            "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} • Android ${android.os.Build.VERSION.RELEASE} • NaturalCam ${BuildConfig.VERSION_NAME}",
+            color = Color(0xFFDDDDDD), fontSize = 12.sp, fontFamily = FontFamily.Monospace,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+        Text(
             "Что твой телефон реально отдаёт стороннему приложению через Camera2. " +
-                "Смотри на RAW и «Ручной сенсор» — без них «естественная» съёмка без ИИ невозможна.",
+                "Смотри на RAW и «Ручной сенсор» — без них «естественная» съёмка без ИИ невозможна. " +
+                "Если фото «не очень» — пришли скриншот этого экрана.",
             color = Color(0xFFAAAAAA), fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp)
         )
 

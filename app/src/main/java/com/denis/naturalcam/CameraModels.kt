@@ -52,6 +52,7 @@ data class ManualSettings(
     val evComp: Int = 0,                  // шаги экспокоррекции
     val zoomRatio: Float = 1.0f,
     val captureRaw: Boolean = false,
+    val hiRes: Boolean = false,           // false = ~12Мп биннинг (чище), true = максимум сенсора
     val pictureStyle: PictureStyle = PictureStyle.NEUTRAL
 )
 

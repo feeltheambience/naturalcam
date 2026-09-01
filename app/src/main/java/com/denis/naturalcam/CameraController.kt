@@ -412,7 +412,19 @@ class CameraController(private val context: Context) {
             choosePreviewSize(viewWidth, viewHeight)
             pendingTexture?.setDefaultBufferSize(previewSize.width, previewSize.height)
 
-            val jpegSize = caps?.maxJpegSize ?: Size(4000, 3000)
+            // Разрешение снимка: по умолчанию ~12Мп (биннинг quad-bayer сенсоров — чище
+            // по-пиксельно и лучше при слабом свете, как делают стоковые камеры).
+            // Полный ремозаик (50/200Мп) — только если включено в МЕНЮ.
+            val jpegSizes = c.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+                ?.getOutputSizes(ImageFormat.JPEG)?.toList() ?: emptyList()
+            val jpegSize = when {
+                jpegSizes.isEmpty() -> caps?.maxJpegSize ?: Size(4000, 3000)
+                settings.hiRes -> jpegSizes.maxByOrNull { it.width.toLong() * it.height }!!
+                else -> {
+                    val target = 12_200_000L
+                    jpegSizes.minByOrNull { Math.abs(it.width.toLong() * it.height - target) }!!
+                }
+            }
             jpegReader = ImageReader.newInstance(jpegSize.width, jpegSize.height, ImageFormat.JPEG, 2).apply {
                 setOnImageAvailableListener({ reader ->
                     reader.acquireNextImage()?.use { img ->
@@ -489,8 +501,8 @@ class CameraController(private val context: Context) {
     fun updateSettings(transform: (ManualSettings) -> ManualSettings) {
         val old = settings
         settings = transform(old)
-        // Если поменяли флаг RAW — нужно пересобрать сессию (меняется набор поверхностей)
-        if (old.captureRaw != settings.captureRaw) {
+        // Смена RAW или разрешения меняет набор/размер потоков — пересобираем сессию
+        if (old.captureRaw != settings.captureRaw || old.hiRes != settings.hiRes) {
             createSession()
         } else {
             applyRepeating()
@@ -617,6 +629,7 @@ class CameraController(private val context: Context) {
         try {
             val b = cam.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
             applyToRequest(b)
+            applyStillQuality(b)
             b.set(CaptureRequest.JPEG_ORIENTATION, jpegOrientation())
             b.set(CaptureRequest.JPEG_QUALITY, 100.toByte())
             b.addTarget(jpeg.surface)
@@ -639,6 +652,33 @@ class CameraController(private val context: Context) {
         }
     }
 
+    /**
+     * Максимальное качество обработки для СНИМКА (не превью): качественный шумодав,
+     * резкость и коррекция аберраций, OIS. Всё — с проверкой поддержки устройством.
+     * На шумных quad-bayer сенсорах (Vivo/Samsung) даёт заметно чище картинку.
+     */
+    private fun applyStillQuality(b: CaptureRequest.Builder) {
+        val c = characteristics ?: return
+        c.get(CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES)?.let { modes ->
+            if (CameraMetadata.NOISE_REDUCTION_MODE_HIGH_QUALITY in modes)
+                b.set(CaptureRequest.NOISE_REDUCTION_MODE, CameraMetadata.NOISE_REDUCTION_MODE_HIGH_QUALITY)
+        }
+        c.get(CameraCharacteristics.EDGE_AVAILABLE_EDGE_MODES)?.let { modes ->
+            if (CameraMetadata.EDGE_MODE_HIGH_QUALITY in modes)
+                b.set(CaptureRequest.EDGE_MODE, CameraMetadata.EDGE_MODE_HIGH_QUALITY)
+        }
+        c.get(CameraCharacteristics.COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES)?.let { modes ->
+            if (CameraMetadata.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY in modes)
+                b.set(CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE,
+                    CameraMetadata.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY)
+        }
+        c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION)?.let { modes ->
+            if (CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_ON in modes)
+                b.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE,
+                    CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_ON)
+        }
+    }
+
     // ---------------------------------------------------------------------
     // 5. Сохранение
     // ---------------------------------------------------------------------
@@ -648,9 +688,43 @@ class CameraController(private val context: Context) {
         return "NC_$stamp"
     }
 
+    /**
+     * Перенос EXIF из исходного JPEG в обработанный: декод/энкод через Bitmap
+     * теряет ВСЕ метаданные, включая ориентацию — из-за этого обработанные фото
+     * лежали боком в галереях. Копируем ключевые теги.
+     */
+    private fun preserveExif(original: ByteArray, processed: ByteArray): ByteArray {
+        return try {
+            val tmp = java.io.File(context.cacheDir, "exif_tmp.jpg")
+            tmp.writeBytes(processed)
+            val src = androidx.exifinterface.media.ExifInterface(java.io.ByteArrayInputStream(original))
+            val dst = androidx.exifinterface.media.ExifInterface(tmp.absolutePath)
+            listOf(
+                androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION,
+                androidx.exifinterface.media.ExifInterface.TAG_DATETIME,
+                androidx.exifinterface.media.ExifInterface.TAG_DATETIME_ORIGINAL,
+                androidx.exifinterface.media.ExifInterface.TAG_EXPOSURE_TIME,
+                androidx.exifinterface.media.ExifInterface.TAG_F_NUMBER,
+                androidx.exifinterface.media.ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY,
+                androidx.exifinterface.media.ExifInterface.TAG_FOCAL_LENGTH,
+                androidx.exifinterface.media.ExifInterface.TAG_MAKE,
+                androidx.exifinterface.media.ExifInterface.TAG_MODEL,
+                androidx.exifinterface.media.ExifInterface.TAG_FLASH,
+                androidx.exifinterface.media.ExifInterface.TAG_WHITE_BALANCE
+            ).forEach { tag -> src.getAttribute(tag)?.let { dst.setAttribute(tag, it) } }
+            dst.saveAttributes()
+            val out = tmp.readBytes()
+            tmp.delete()
+            out
+        } catch (e: Throwable) {
+            processed
+        }
+    }
+
     private fun saveJpeg(rawBytes: ByteArray) {
         val style = settings.pictureStyle
-        val bytes = PictureStyleProcessor.apply(rawBytes, style, lut, lutMix, digitalFactor())
+        val processed = PictureStyleProcessor.apply(rawBytes, style, lut, lutMix, digitalFactor())
+        val bytes = if (processed !== rawBytes) preserveExif(rawBytes, processed) else rawBytes
         val styleTag = if (style == PictureStyle.NEUTRAL) "" else "_${style.name.lowercase()}"
         val name = "${baseName()}$styleTag.jpg"
         try {
