@@ -622,6 +622,23 @@ fun CalibrationRow(controller: CameraController, accent: Color) {
             "Крути «Поворот» пока картинка не станет правильной — запомнится для этой камеры.",
             color = Color(0xFF777777), fontSize = 9.sp
         )
+        // --- Диагностика ввода: для привязки колеса зума / кнопок аксессуара ---
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "УСТРОЙСТВА ВВОДА: " + controller.inputDevicesInfo().joinToString("; ").ifEmpty { "—" },
+            color = Color(0xFF9A9A9A), fontSize = 9.sp, fontFamily = FontFamily.Monospace
+        )
+        Text(
+            "Покрути колесо/нажми кнопки аксессуара — события появятся ниже. Пришли скриншот.",
+            color = accent.copy(alpha = 0.8f), fontSize = 9.sp
+        )
+        controller.inputLog.forEach { line ->
+            Text(line, color = Color(0xFFCCCCCC), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+        }
+        if (controller.inputLog.isEmpty()) {
+            Text("(пока событий нет)", color = Color(0xFF666666), fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace)
+        }
     }
 }
 

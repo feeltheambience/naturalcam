@@ -63,6 +63,33 @@ class MainActivity : ComponentActivity() {
     }
 
     // ------------------------------------------------------------------
+    // ДИАГНОСТИКА ВВОДА: ловим ВСЁ на самом раннем этапе (dispatch), до любой
+    // обработки — чтобы увидеть, шлёт ли колесо аксессуара хоть какие-то события.
+    // Лог виден в CAL-панели.
+    // ------------------------------------------------------------------
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (::controller.isInitialized && event.action == KeyEvent.ACTION_DOWN) {
+            controller.logInput(
+                "key ${event.keyCode} ${KeyEvent.keyCodeToString(event.keyCode)} • ${event.device?.name ?: "?"}"
+            )
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (::controller.isInitialized &&
+            (event.source and android.view.InputDevice.SOURCE_TOUCHSCREEN) != android.view.InputDevice.SOURCE_TOUCHSCREEN
+        ) {
+            val s = event.getAxisValue(MotionEvent.AXIS_SCROLL)
+            val v = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+            controller.logInput(
+                "motion src=0x${Integer.toHexString(event.source)} scroll=$s/$v • ${event.device?.name ?: "?"}"
+            )
+        }
+        return super.dispatchGenericMotionEvent(event)
+    }
+
+    // ------------------------------------------------------------------
     // Аппаратное управление: громкость = зум, затвор = снимок.
     // Неизвестные кнопки показываем в статусе — чтобы привязать колесо зума.
     // ------------------------------------------------------------------

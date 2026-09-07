@@ -548,6 +548,32 @@ class CameraController(private val context: Context) {
     /** Диагностика неизвестных аппаратных кнопок — код показывается в статус-строке. */
     fun noteHardwareInput(msg: String) { status = msg }
 
+    // --- Диагностика ввода (для привязки колеса/кнопок аксессуаров) ---
+    // Лог последних событий ввода: показывается в CAL-панели, чтобы увидеть,
+    // доходит ли от колеса зума хоть что-то до приложения, и с каким кодом.
+    val inputLog = androidx.compose.runtime.mutableStateListOf<String>()
+    fun logInput(s: String) {
+        if (inputLog.size >= 6) inputLog.removeAt(0)
+        inputLog.add(s)
+    }
+
+    /** Подключённые устройства ввода (аксессуар, если система его видит, будет в списке). */
+    fun inputDevicesInfo(): List<String> {
+        val out = mutableListOf<String>()
+        for (id in android.view.InputDevice.getDeviceIds()) {
+            val d = android.view.InputDevice.getDevice(id) ?: continue
+            if (d.isVirtual) continue
+            // Чисто сенсорные экраны не интересны — ищем кнопки/колёса/энкодеры
+            val touchOnly = d.supportsSource(android.view.InputDevice.SOURCE_TOUCHSCREEN) &&
+                !d.supportsSource(android.view.InputDevice.SOURCE_KEYBOARD) &&
+                !d.supportsSource(android.view.InputDevice.SOURCE_ROTARY_ENCODER) &&
+                !d.supportsSource(android.view.InputDevice.SOURCE_DPAD)
+            if (touchOnly) continue
+            out.add("${d.name} [0x${Integer.toHexString(d.sources)}]")
+        }
+        return out
+    }
+
     companion object {
         /** Насколько тянем цифровым кропом сверх аппаратного предела. */
         const val DIGITAL_EXTRA = 3f

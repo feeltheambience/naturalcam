@@ -13,8 +13,8 @@ android {
         applicationId = "com.denis.naturalcam"
         minSdk = 30           // Android 11 — нужно для CONTROL_ZOOM_RATIO (плавный зум кольцом)
         targetSdk = 35
-        versionCode = 18
-        versionName = "0.18"
+        versionCode = 19
+        versionName = "0.19"
     }
 
     buildTypes {
